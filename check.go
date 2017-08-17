@@ -99,7 +99,7 @@ func (c *Checker) walk(node ast.Node) bool {
 		// divide by 0, and small ones like 5/1 have a less
 		// dramatic ratio
 		score := float64(inside) / float64(after+5)
-		if score < 1.0 {
+		if score < 2.0 {
 			continue // reversing if would not be worth it
 		}
 		pos := c.lprog.Fset.Position(ifs.Pos())
@@ -107,7 +107,7 @@ func (c *Checker) walk(node ast.Node) bool {
 			pos.Filename = rel
 		}
 		c.lines = append(c.lines,
-			fmt.Sprintf("%v: %d stmts inside, %d after (score %.2f)\n",
+			fmt.Sprintf("%v: %d stmts inside, %d after (score %.2f)",
 				pos, inside, after, score))
 	}
 	return true
