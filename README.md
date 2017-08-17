@@ -1,3 +1,3 @@
 # unindent
 
-Still a work in progress.
+	go get -u mvdan.cc/unindent
