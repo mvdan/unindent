@@ -62,8 +62,18 @@ type Checker struct {
 }
 
 func (c *Checker) walk(node ast.Node) bool {
-	bl, ok := node.(*ast.BlockStmt)
-	if !ok {
+	var bl *ast.BlockStmt
+	// we can only return/break/continue out of these, not out of
+	// e.g. IfStmt
+	switch x := node.(type) {
+	case *ast.FuncDecl:
+		bl = x.Body
+	case *ast.FuncLit:
+		bl = x.Body
+	case *ast.ForStmt:
+		bl = x.Body
+	}
+	if bl == nil {
 		return true
 	}
 	for i, stmt := range bl.List {
@@ -103,7 +113,8 @@ func (c *Checker) walk(node ast.Node) bool {
 			continue // reversing if would not be worth it
 		}
 		pos := c.lprog.Fset.Position(ifs.Pos())
-		if rel, err := filepath.Rel(c.wd, pos.Filename); err == nil {
+		rel, err := filepath.Rel(c.wd, pos.Filename)
+		if err == nil && len(rel) < len(pos.Filename) {
 			pos.Filename = rel
 		}
 		c.lines = append(c.lines,

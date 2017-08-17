@@ -1,2 +1,3 @@
 testdata/if.go:4:2: 16 stmts inside, 0 after (score 3.20)
-testdata/if.go:44:2: 16 stmts inside, 2 after (score 2.29)
+testdata/noearly.go:17:2: 16 stmts inside, 0 after (score 3.20)
+testdata/terminate.go:21:2: 16 stmts inside, 2 after (score 2.29)
