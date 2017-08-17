@@ -9,9 +9,11 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
-	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/kisielk/gotool"
+	"github.com/mvdan/lint"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -22,7 +24,7 @@ var (
 
 func main() {
 	flag.Parse()
-	lines, err := check(*tests, flag.Args()...)
+	lines, err := Unindent(*tests, flag.Args()...)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -32,7 +34,7 @@ func main() {
 	}
 }
 
-func check(tests bool, args ...string) ([]string, error) {
+func Unindent(tests bool, args ...string) ([]string, error) {
 	paths := gotool.ImportPaths(args)
 	var conf loader.Config
 	conf.TypeCheckFuncBodies = func(path string) bool {
@@ -49,20 +51,66 @@ func check(tests bool, args ...string) ([]string, error) {
 	if c.wd, err = os.Getwd(); err != nil {
 		return nil, err
 	}
-	for _, info := range lprog.InitialPackages() {
+	return c.lines(tests, args...)
+}
+
+func (c *Checker) lines(tests bool, args ...string) ([]string, error) {
+	issues, err := c.Check()
+	if err != nil {
+		return nil, err
+	}
+	lines := make([]string, len(issues))
+	for i, issue := range issues {
+		fpos := c.lprog.Fset.Position(issue.Pos()).String()
+		if strings.HasPrefix(fpos, c.wd) {
+			fpos = fpos[len(c.wd)+1:]
+		}
+		lines[i] = fmt.Sprintf("%s: %s", fpos, issue.Message())
+	}
+	return lines, nil
+}
+
+func (c *Checker) Check() ([]lint.Issue, error) {
+	for _, info := range c.lprog.InitialPackages() {
 		for _, file := range info.Files {
 			ast.Inspect(file, c.walk)
 		}
 	}
-	return c.lines, nil
+	// TODO: replace by sort.Slice once we drop Go 1.7 support
+	sort.Sort(byNamePos{c.lprog.Fset, c.issues})
+	return c.issues, nil
+}
+
+type byNamePos struct {
+	fset *token.FileSet
+	l    []lint.Issue
+}
+
+func (p byNamePos) Len() int      { return len(p.l) }
+func (p byNamePos) Swap(i, j int) { p.l[i], p.l[j] = p.l[j], p.l[i] }
+func (p byNamePos) Less(i, j int) bool {
+	p1 := p.fset.Position(p.l[i].Pos())
+	p2 := p.fset.Position(p.l[j].Pos())
+	if p1.Filename == p2.Filename {
+		return p1.Offset < p2.Offset
+	}
+	return p1.Filename < p2.Filename
 }
 
 type Checker struct {
-	lprog *loader.Program
-	lines []string
+	lprog  *loader.Program
+	issues []lint.Issue
 
 	wd string
 }
+
+type Issue struct {
+	pos token.Pos
+	msg string
+}
+
+func (i Issue) Pos() token.Pos  { return i.pos }
+func (i Issue) Message() string { return i.msg }
 
 func (c *Checker) walk(node ast.Node) bool {
 	var bl *ast.BlockStmt
@@ -115,14 +163,11 @@ func (c *Checker) walk(node ast.Node) bool {
 		if score < *treshold {
 			continue // reversing if would not be worth it
 		}
-		pos := c.lprog.Fset.Position(ifs.Pos())
-		rel, err := filepath.Rel(c.wd, pos.Filename)
-		if err == nil && len(rel) < len(pos.Filename) {
-			pos.Filename = rel
-		}
-		c.lines = append(c.lines,
-			fmt.Sprintf("%v: %d stmts inside, %d after (score %.2f)",
-				pos, inside, after, score))
+		c.issues = append(c.issues, Issue{
+			pos: ifs.Pos(),
+			msg: fmt.Sprintf("%d stmts inside, %d after (score %.2f)",
+				inside, after, score),
+		})
 	}
 	return true
 }

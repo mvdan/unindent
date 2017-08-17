@@ -14,7 +14,7 @@ import (
 var write = flag.Bool("w", false, "write test outputs")
 
 func TestCheck(t *testing.T) {
-	warns, err := check(true, "./testdata")
+	warns, err := Unindent(true, "./testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
