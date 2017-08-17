@@ -2,29 +2,29 @@
 
 	go get -u mvdan.cc/unindent
 
-Reports code that is unnecessarily indented. For example:
+Reports code that is unnecessarily indented. Examples include:
 
 ```
 for _, elem := range list {
 	if cond {
-		// here
-		// be
-		// many
-		// lines
+		// here be many lines
 	}
 }
 ```
 
-Can be rewritten as:
+```
+if cond1 {
+	if cond2 {
+		// here be many lines
+	}
+}
+```
 
 ```
-for _, elem := range list {
-	if !cond {
-		continue
+if cond1 {
+} else {
+	if cond2 {
+		// here be many lines
 	}
-	// here
-	// be
-	// many
-	// lines
 }
 ```
