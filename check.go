@@ -15,7 +15,10 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
-var tests = flag.Bool("tests", true, "include tests")
+var (
+	tests    = flag.Bool("tests", true, "include tests")
+	treshold = flag.Float64("r", 2.0, "ratio treshold (big/small)")
+)
 
 func main() {
 	flag.Parse()
@@ -109,7 +112,7 @@ func (c *Checker) walk(node ast.Node) bool {
 		// divide by 0, and small ones like 5/1 have a less
 		// dramatic ratio
 		score := float64(inside) / float64(after+5)
-		if score < 2.0 {
+		if score < *treshold {
 			continue // reversing if would not be worth it
 		}
 		pos := c.lprog.Fset.Position(ifs.Pos())
