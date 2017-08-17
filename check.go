@@ -9,43 +9,56 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"path/filepath"
 
 	"github.com/kisielk/gotool"
 	"golang.org/x/tools/go/loader"
 )
 
+var tests = flag.Bool("tests", true, "include tests")
+
 func main() {
-	if err := check(); err != nil {
+	flag.Parse()
+	lines, err := check(*tests, flag.Args()...)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	for _, line := range lines {
+		fmt.Println(line)
+	}
 }
 
-func check() error {
-	flag.Parse()
-	paths := gotool.ImportPaths(flag.Args())
+func check(tests bool, args ...string) ([]string, error) {
+	paths := gotool.ImportPaths(args)
 	var conf loader.Config
 	conf.TypeCheckFuncBodies = func(path string) bool {
 		return false
 	}
-	if _, err := conf.FromArgs(paths, false); err != nil {
-		return err
+	if _, err := conf.FromArgs(paths, tests); err != nil {
+		return nil, err
 	}
 	lprog, err := conf.Load()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	c := &Checker{lprog: lprog}
+	if c.wd, err = os.Getwd(); err != nil {
+		return nil, err
+	}
 	for _, info := range lprog.InitialPackages() {
 		for _, file := range info.Files {
 			ast.Inspect(file, c.walk)
 		}
 	}
-	return nil
+	return c.lines, nil
 }
 
 type Checker struct {
 	lprog *loader.Program
+	lines []string
+
+	wd string
 }
 
 func (c *Checker) walk(node ast.Node) bool {
@@ -86,12 +99,16 @@ func (c *Checker) walk(node ast.Node) bool {
 		// divide by 0, and small ones like 5/1 have a less
 		// dramatic ratio
 		score := float64(inside) / float64(after+5)
-		if score < 4.0 {
+		if score < 1.0 {
 			continue // reversing if would not be worth it
 		}
 		pos := c.lprog.Fset.Position(ifs.Pos())
-		fmt.Printf("%v: %d stmts inside, %d after (score %.2f)\n",
-			pos, inside, after, score)
+		if rel, err := filepath.Rel(c.wd, pos.Filename); err == nil {
+			pos.Filename = rel
+		}
+		c.lines = append(c.lines,
+			fmt.Sprintf("%v: %d stmts inside, %d after (score %.2f)\n",
+				pos, inside, after, score))
 	}
 	return true
 }
