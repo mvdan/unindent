@@ -20,7 +20,7 @@ import (
 
 var (
 	tests    = flag.Bool("tests", true, "include tests")
-	treshold = flag.Float64("r", 2.0, "ratio treshold (big/small)")
+	treshold = flag.Float64("exp.r", 2.0, "ratio treshold (may go away)")
 )
 
 func main() {
