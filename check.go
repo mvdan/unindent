@@ -137,15 +137,23 @@ func (c *Checker) walk(node ast.Node) bool {
 			continue // too complex
 		}
 		if ifs.Else != nil {
-			if !blockSingleIf(ifs.Else) {
+			if blockSingleIf(ifs.Else) == nil {
 				continue
 			}
-			if blockSingleIf(ifs.Body) {
+			if blockSingleIf(ifs.Body) != nil {
 				continue // useful for symmetry
 			}
 			c.issues = append(c.issues, Issue{
 				pos: ifs.Else.Pos(),
-				msg: fmt.Sprintf(`"else { if" should be "else if"`),
+				msg: fmt.Sprintf(`"else { if x" should be "else if x"`),
+			})
+			continue
+		}
+		if nested := blockSingleIf(ifs.Body); nested != nil &&
+			nested.Init == nil && nested.Else == nil {
+			c.issues = append(c.issues, Issue{
+				pos: ifs.Pos(),
+				msg: fmt.Sprintf(`"if x { if y" should be "if x && y"`),
 			})
 			continue
 		}
@@ -221,11 +229,11 @@ func (c *Checker) isErrNotNil(expr ast.Expr) bool {
 	return true
 }
 
-func blockSingleIf(stmt ast.Stmt) bool {
+func blockSingleIf(stmt ast.Stmt) *ast.IfStmt {
 	bl, ok := stmt.(*ast.BlockStmt)
 	if !ok || len(bl.List) != 1 {
-		return false
+		return nil
 	}
-	_, ok = bl.List[0].(*ast.IfStmt)
-	return ok
+	ifs, _ := bl.List[0].(*ast.IfStmt)
+	return ifs
 }

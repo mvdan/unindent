@@ -28,4 +28,3 @@ func Terminating() {
 	}
 	num--; println(num)
 }
-

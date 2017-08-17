@@ -16,3 +16,24 @@ func ElseIf() {
 		}
 	}
 }
+
+func ElseNoIf() {
+	if cond {
+		if cond2 {
+			println(num)
+		}
+	} else {
+	}
+}
+
+func ElseIfSymmetry() {
+	if cond {
+		if !cond2 {
+			println(num + 1)
+		}
+	} else {
+		if cond2 {
+			println(num)
+		}
+	}
+}
