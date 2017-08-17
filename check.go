@@ -20,7 +20,7 @@ import (
 
 var (
 	tests    = flag.Bool("tests", true, "include tests")
-	treshold = flag.Float64("exp.r", 2.0, "ratio treshold (may go away)")
+	treshold = flag.Float64("exp.r", 2.0, "ratio treshold")
 )
 
 func main() {
@@ -133,8 +133,21 @@ func (c *Checker) walk(node ast.Node) bool {
 		if !ok {
 			continue
 		}
-		if ifs.Init != nil || ifs.Else != nil {
+		if ifs.Init != nil {
 			continue // too complex
+		}
+		if ifs.Else != nil {
+			if !blockSingleIf(ifs.Else) {
+				continue
+			}
+			if blockSingleIf(ifs.Body) {
+				continue // useful for symmetry
+			}
+			c.issues = append(c.issues, Issue{
+				pos: ifs.Else.Pos(),
+				msg: fmt.Sprintf(`"else { if" should be "else if"`),
+			})
+			continue
 		}
 		if c.isErrNotNil(ifs.Cond) {
 			continue
@@ -206,4 +219,13 @@ func (c *Checker) isErrNotNil(expr ast.Expr) bool {
 		return false // not builtin nil
 	}
 	return true
+}
+
+func blockSingleIf(stmt ast.Stmt) bool {
+	bl, ok := stmt.(*ast.BlockStmt)
+	if !ok || len(bl.List) != 1 {
+		return false
+	}
+	_, ok = bl.List[0].(*ast.IfStmt)
+	return ok
 }
