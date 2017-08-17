@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"os"
 	"sort"
 	"strings"
@@ -37,9 +38,6 @@ func main() {
 func Unindent(tests bool, args ...string) ([]string, error) {
 	paths := gotool.ImportPaths(args)
 	var conf loader.Config
-	conf.TypeCheckFuncBodies = func(path string) bool {
-		return false
-	}
 	if _, err := conf.FromArgs(paths, tests); err != nil {
 		return nil, err
 	}
@@ -72,6 +70,7 @@ func (c *Checker) lines(tests bool, args ...string) ([]string, error) {
 
 func (c *Checker) Check() ([]lint.Issue, error) {
 	for _, info := range c.lprog.InitialPackages() {
+		c.info = info
 		for _, file := range info.Files {
 			ast.Inspect(file, c.walk)
 		}
@@ -102,6 +101,8 @@ type Checker struct {
 	issues []lint.Issue
 
 	wd string
+
+	info *loader.PackageInfo
 }
 
 type Issue struct {
@@ -134,6 +135,9 @@ func (c *Checker) walk(node ast.Node) bool {
 		}
 		if ifs.Init != nil || ifs.Else != nil {
 			continue // too complex
+		}
+		if c.isErrNotNil(ifs.Cond) {
+			continue
 		}
 		body := ifs.Body.List
 		inside := countStmts(body...)
@@ -183,4 +187,23 @@ func countStmts(stmts ...ast.Stmt) int {
 		})
 	}
 	return count
+}
+
+// isErrNotNil reports whether an expression is "err != nil". It matches
+// the left side to be exactly of type builtin "error", and the right
+// side to be untyped nil.
+func (c *Checker) isErrNotNil(expr ast.Expr) bool {
+	be, ok := expr.(*ast.BinaryExpr)
+	if !ok || be.Op != token.NEQ {
+		return false // not !=
+	}
+	left, ok := c.info.TypeOf(be.X).(*types.Named)
+	if !ok || left.Obj().Pkg() != nil || left.Obj().Name() != "error" {
+		return false // not builtin error
+	}
+	right, ok := c.info.TypeOf(be.Y).(*types.Basic)
+	if !ok || right.Kind() != types.UntypedNil {
+		return false // not builtin nil
+	}
+	return true
 }

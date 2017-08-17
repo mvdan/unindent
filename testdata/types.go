@@ -6,4 +6,8 @@ var (
 	num int
 
 	Sink interface{}
+
+	errVar error
+
+	fnErr func() (*int, error)
 )

@@ -1,3 +1,6 @@
 testdata/earlyret.go:17:2: 16 stmts inside, 0 after (score 3.20)
+testdata/errnil.go:19:2: 17 stmts inside, 1 after (score 2.83)
+testdata/errnil.go:33:2: 17 stmts inside, 1 after (score 2.83)
+testdata/errnil.go:47:2: 17 stmts inside, 1 after (score 2.83)
 testdata/if.go:4:2: 16 stmts inside, 0 after (score 3.20)
 testdata/terminate.go:21:2: 16 stmts inside, 2 after (score 2.29)
