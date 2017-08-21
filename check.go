@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
@@ -38,6 +39,7 @@ func main() {
 func Unindent(tests bool, args ...string) ([]string, error) {
 	paths := gotool.ImportPaths(args)
 	var conf loader.Config
+	conf.ParserMode |= parser.ParseComments
 	if _, err := conf.FromArgs(paths, tests); err != nil {
 		return nil, err
 	}
@@ -72,6 +74,7 @@ func (c *Checker) Check() ([]lint.Issue, error) {
 	for _, info := range c.lprog.InitialPackages() {
 		c.info = info
 		for _, file := range info.Files {
+			c.file = file
 			ast.Inspect(file, c.walk)
 		}
 	}
@@ -103,6 +106,7 @@ type Checker struct {
 	wd string
 
 	info *loader.PackageInfo
+	file *ast.File
 }
 
 type Issue struct {
@@ -154,6 +158,12 @@ func (c *Checker) walk(node ast.Node) bool {
 			nested.Init == nil && nested.Else == nil {
 			if topLevelOr(ifs.Cond) || topLevelOr(nested.Cond) {
 				continue // would need extra parens
+			}
+			if c.anyCommentsBetween(ifs.Pos(), nested.Pos()) {
+				continue // comments before nested
+			}
+			if c.anyCommentsBetween(nested.End(), ifs.End()) {
+				continue // comments after nested
 			}
 			c.issues = append(c.issues, Issue{
 				pos: ifs.Pos(),
@@ -251,4 +261,16 @@ func topLevelOr(expr ast.Expr) bool {
 		return true
 	}
 	return topLevelOr(be.X) || topLevelOr(be.Y)
+}
+
+func (c *Checker) anyCommentsBetween(p1, p2 token.Pos) bool {
+	for _, cg := range c.file.Comments {
+		if cg.Pos() > p2 {
+			return false
+		}
+		if cg.Pos() >= p1 {
+			return true
+		}
+	}
+	return false
 }
