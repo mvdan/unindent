@@ -143,6 +143,7 @@ func (c *Checker) walk(node ast.Node) bool {
 			if blockSingleIf(ifs.Body) != nil {
 				continue // useful for symmetry
 			}
+			continue // TODO: too many false positives, redesign
 			c.issues = append(c.issues, Issue{
 				pos: ifs.Else.Pos(),
 				msg: fmt.Sprintf(`"else { if x" should be "else if x"`),
