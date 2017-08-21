@@ -1,4 +1,5 @@
 testdata/chainedifs.go:4:2: "if x { if y" should be "if x && y"
+testdata/chainedifs.go:20:2: "if x { if y" should be "if x && y"
 testdata/earlyret.go:17:2: 16 stmts inside, 0 after (score 3.20)
 testdata/errnil.go:19:2: 17 stmts inside, 1 after (score 2.83)
 testdata/errnil.go:33:2: 17 stmts inside, 1 after (score 2.83)

@@ -152,6 +152,9 @@ func (c *Checker) walk(node ast.Node) bool {
 		}
 		if nested := blockSingleIf(ifs.Body); nested != nil &&
 			nested.Init == nil && nested.Else == nil {
+			if topLevelOr(ifs.Cond) || topLevelOr(nested.Cond) {
+				continue // would need extra parens
+			}
 			c.issues = append(c.issues, Issue{
 				pos: ifs.Pos(),
 				msg: fmt.Sprintf(`"if x { if y" should be "if x && y"`),
@@ -237,4 +240,15 @@ func blockSingleIf(stmt ast.Stmt) *ast.IfStmt {
 	}
 	ifs, _ := bl.List[0].(*ast.IfStmt)
 	return ifs
+}
+
+func topLevelOr(expr ast.Expr) bool {
+	be, ok := expr.(*ast.BinaryExpr)
+	if !ok {
+		return false
+	}
+	if be.Op == token.LOR {
+		return true
+	}
+	return topLevelOr(be.X) || topLevelOr(be.Y)
 }

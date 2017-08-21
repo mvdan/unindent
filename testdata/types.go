@@ -1,7 +1,7 @@
 package foo
 
 var (
-	cond, cond2 bool
+	cond, cond2, cond3 bool
 
 	num int
 

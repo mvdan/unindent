@@ -2,7 +2,23 @@ package foo
 
 func IfIf() {
 	if cond {
-		if cond2 {
+		if cond2 == cond3 {
+			println(num)
+		}
+	}
+}
+
+func IfIfWouldNeedParen() {
+	if cond {
+		if cond2 || cond3 {
+			println(num)
+		}
+	}
+}
+
+func IfIfNoParen() {
+	if (cond || num == 0) {
+		if cond2 && cond3 {
 			println(num)
 		}
 	}
