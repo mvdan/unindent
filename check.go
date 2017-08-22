@@ -112,6 +112,8 @@ type Checker struct {
 	file *ast.File
 
 	stack []ast.Node
+
+	indent int
 }
 
 type Issue struct {
@@ -123,19 +125,27 @@ func (i Issue) Pos() token.Pos  { return i.pos }
 func (i Issue) Message() string { return i.msg }
 
 func (c *Checker) walk(node ast.Node) bool {
+	parent := c.stack[len(c.stack)-1]
 	if node == nil {
+		_, ok := parent.(*ast.BlockStmt)
+		if ok {
+			c.indent--
+		}
 		c.stack = c.stack[:len(c.stack)-1]
 		return true
 	}
-	parent := c.stack[len(c.stack)-1]
 	c.stack = append(c.stack, node)
 	bl, ok := node.(*ast.BlockStmt)
 	if !ok {
 		return true
 	}
+	c.indent++
 	// we can only return/break/continue out of these
+	early := "return"
 	switch parent.(type) {
-	case *ast.FuncDecl, *ast.FuncLit, *ast.ForStmt:
+	case *ast.FuncDecl, *ast.FuncLit:
+	case *ast.ForStmt:
+		early = "break"
 	default:
 		return true
 	}
@@ -188,8 +198,8 @@ func (c *Checker) walk(node ast.Node) bool {
 			continue
 		}
 		body := ifs.Body.List
-		inside := countStmts(body...)
-		after := countStmts(bl.List[i+1:]...)
+		inside := countIndents(c.indent, body...)
+		after := countIndents(c.indent, bl.List[i+1:]...)
 		if after > 0 { // we need the if body to terminate
 			if len(body) < 1 {
 				continue // non-terminating
@@ -211,25 +221,39 @@ func (c *Checker) walk(node ast.Node) bool {
 		// add N (5) to after so that zero values like 3/0 don't
 		// divide by 0, and small ones like 5/1 have a less
 		// dramatic ratio
-		score := float64(inside) / float64(after+5)
+		after += 5*c.indent
+		score := float64(inside) / float64(after)
 		if score < *treshold {
 			continue // reversing if would not be worth it
 		}
 		c.issues = append(c.issues, Issue{
 			pos: ifs.Pos(),
-			msg: fmt.Sprintf("%d stmts inside, %d after",
-				inside, after),
+			msg: fmt.Sprintf("invert condition and early %s", early),
 		})
 	}
 	return true
 }
 
-func countStmts(stmts ...ast.Stmt) int {
+func countIndents(indent int, stmts ...ast.Stmt) int {
 	count := 0
+	parents := []ast.Node{nil}
 	for _, stmt := range stmts {
 		ast.Inspect(stmt, func(node ast.Node) bool {
+			parent := parents[len(parents)-1]
+			if node == nil {
+				_, ok := parent.(*ast.BlockStmt)
+				if ok {
+					indent--
+				}
+				parents = parents[:len(parents)-1]
+				return true
+			}
+			parents = append(parents, node)
 			if _, ok := node.(ast.Stmt); ok {
-				count++
+				count += indent
+			}
+			if _, ok := node.(*ast.BlockStmt); ok {
+				indent++
 			}
 			return true
 		})
