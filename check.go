@@ -47,7 +47,10 @@ func Unindent(tests bool, args ...string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Checker{lprog: lprog}
+	c := &Checker{
+		lprog: lprog,
+		stack: []ast.Node{nil},
+	}
 	if c.wd, err = os.Getwd(); err != nil {
 		return nil, err
 	}
@@ -107,6 +110,8 @@ type Checker struct {
 
 	info *loader.PackageInfo
 	file *ast.File
+
+	stack []ast.Node
 }
 
 type Issue struct {
@@ -118,18 +123,20 @@ func (i Issue) Pos() token.Pos  { return i.pos }
 func (i Issue) Message() string { return i.msg }
 
 func (c *Checker) walk(node ast.Node) bool {
-	var bl *ast.BlockStmt
-	// we can only return/break/continue out of these, not out of
-	// e.g. IfStmt
-	switch x := node.(type) {
-	case *ast.FuncDecl:
-		bl = x.Body
-	case *ast.FuncLit:
-		bl = x.Body
-	case *ast.ForStmt:
-		bl = x.Body
+	if node == nil {
+		c.stack = c.stack[:len(c.stack)-1]
+		return true
 	}
-	if bl == nil {
+	parent := c.stack[len(c.stack)-1]
+	c.stack = append(c.stack, node)
+	bl, ok := node.(*ast.BlockStmt)
+	if !ok {
+		return true
+	}
+	// we can only return/break/continue out of these
+	switch parent.(type) {
+	case *ast.FuncDecl, *ast.FuncLit, *ast.ForStmt:
+	default:
 		return true
 	}
 	ifIndex := 0
