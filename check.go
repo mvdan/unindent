@@ -210,8 +210,8 @@ func (c *Checker) walk(node ast.Node) bool {
 		}
 		c.issues = append(c.issues, Issue{
 			pos: ifs.Pos(),
-			msg: fmt.Sprintf("%d stmts inside, %d after (score %.2f)",
-				inside, after, score),
+			msg: fmt.Sprintf("%d stmts inside, %d after",
+				inside, after),
 		})
 	}
 	return true
