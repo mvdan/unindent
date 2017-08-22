@@ -132,11 +132,13 @@ func (c *Checker) walk(node ast.Node) bool {
 	if bl == nil {
 		return true
 	}
+	ifIndex := 0
 	for i, stmt := range bl.List {
 		ifs, ok := stmt.(*ast.IfStmt)
 		if !ok {
 			continue
 		}
+		ifIndex++
 		if ifs.Init != nil {
 			continue // too complex
 		}
@@ -170,6 +172,10 @@ func (c *Checker) walk(node ast.Node) bool {
 				msg: fmt.Sprintf(`"if x { if y" should be "if x && y"`),
 			})
 			continue
+		}
+		if ifIndex > 1 {
+			// TODO: consider biasing the ratio instead
+			break // list of ifs (non-default cases)
 		}
 		if c.isErrNotNil(ifs.Cond) {
 			continue

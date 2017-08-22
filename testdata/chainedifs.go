@@ -53,3 +53,14 @@ func ElseIfSymmetry() {
 		}
 	}
 }
+
+func IfIfInList() {
+	if num == 0 {
+		println("foo")
+	}
+	if cond {
+		if cond2 == cond3 {
+			println(num)
+		}
+	}
+}
