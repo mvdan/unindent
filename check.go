@@ -47,10 +47,7 @@ func Unindent(tests bool, args ...string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Checker{
-		lprog: lprog,
-		stack: []ast.Node{nil},
-	}
+	c := &Checker{lprog: lprog}
 	if c.wd, err = os.Getwd(); err != nil {
 		return nil, err
 	}
@@ -78,12 +75,25 @@ func (c *Checker) Check() ([]lint.Issue, error) {
 		c.info = info
 		for _, file := range info.Files {
 			c.file = file
-			ast.Inspect(file, c.walk)
+			inspectWithParent(file, c.walk)
 		}
 	}
 	// TODO: replace by sort.Slice once we drop Go 1.7 support
 	sort.Sort(byNamePos{c.lprog.Fset, c.issues})
 	return c.issues, nil
+}
+
+func inspectWithParent(node ast.Node, fn func(parent, node ast.Node) bool) {
+	parents := []ast.Node{nil}
+	ast.Inspect(node, func(node ast.Node) bool {
+		parent := parents[len(parents)-1]
+		if node == nil {
+			parents = parents[:len(parents)-1]
+		} else {
+			parents = append(parents, node)
+		}
+		return fn(parent, node)
+	})
 }
 
 type byNamePos struct {
@@ -111,8 +121,6 @@ type Checker struct {
 	info *loader.PackageInfo
 	file *ast.File
 
-	stack []ast.Node
-
 	indent int
 }
 
@@ -124,17 +132,13 @@ type Issue struct {
 func (i Issue) Pos() token.Pos  { return i.pos }
 func (i Issue) Message() string { return i.msg }
 
-func (c *Checker) walk(node ast.Node) bool {
-	parent := c.stack[len(c.stack)-1]
+func (c *Checker) walk(parent, node ast.Node) bool {
 	if node == nil {
-		_, ok := parent.(*ast.BlockStmt)
-		if ok {
+		if _, ok := parent.(*ast.BlockStmt); ok {
 			c.indent--
 		}
-		c.stack = c.stack[:len(c.stack)-1]
 		return true
 	}
-	c.stack = append(c.stack, node)
 	bl, ok := node.(*ast.BlockStmt)
 	if !ok {
 		return true
@@ -221,7 +225,7 @@ func (c *Checker) walk(node ast.Node) bool {
 		// add N (5) to after so that zero values like 3/0 don't
 		// divide by 0, and small ones like 5/1 have a less
 		// dramatic ratio
-		after += 5*c.indent
+		after += 5 * c.indent
 		score := float64(inside) / float64(after)
 		if score < *treshold {
 			continue // reversing if would not be worth it
@@ -236,19 +240,14 @@ func (c *Checker) walk(node ast.Node) bool {
 
 func countIndents(indent int, stmts ...ast.Stmt) int {
 	count := 0
-	parents := []ast.Node{nil}
 	for _, stmt := range stmts {
-		ast.Inspect(stmt, func(node ast.Node) bool {
-			parent := parents[len(parents)-1]
+		inspectWithParent(stmt, func(parent, node ast.Node) bool {
 			if node == nil {
-				_, ok := parent.(*ast.BlockStmt)
-				if ok {
+				if _, ok := parent.(*ast.BlockStmt); ok {
 					indent--
 				}
-				parents = parents[:len(parents)-1]
 				return true
 			}
-			parents = append(parents, node)
 			if _, ok := node.(ast.Stmt); ok {
 				count += indent
 			}
