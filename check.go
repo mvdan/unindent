@@ -14,9 +14,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kisielk/gotool"
-	"github.com/mvdan/lint"
 	"golang.org/x/tools/go/loader"
+
+	"github.com/kisielk/gotool"
+	"mvdan.cc/lint"
 )
 
 var (
