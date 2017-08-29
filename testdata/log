@@ -1,6 +1,8 @@
 testdata/chainedifs.go:4:2: "if x { if y" should be "if x && y"
 testdata/chainedifs.go:20:2: "if x { if y" should be "if x && y"
 testdata/chainedifs.go:61:2: "if x { if y" should be "if x && y"
+testdata/chainedifs.go:77:2: "if x { if y" should be "if x && y"
+testdata/chainedifs.go:85:2: "if x { if y" should be "if x && y"
 testdata/comments.go:4:2: "if x { if y" should be "if x && y"
 testdata/earlyret.go:17:2: invert condition and early return
 testdata/errnil.go:19:2: invert condition and early return

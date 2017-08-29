@@ -183,6 +183,9 @@ func (c *Checker) walk(parent, node ast.Node) bool {
 			if topLevelOr(ifs.Cond) || topLevelOr(nested.Cond) {
 				continue // would need extra parens
 			}
+			if c.anyAction(ifs.Cond) || c.anyAction(nested.Cond) {
+				continue // don't mix logic with actions
+			}
 			if c.anyCommentsBetween(ifs.Pos(), nested.Pos()) {
 				continue // comments before nested
 			}
@@ -298,6 +301,27 @@ func topLevelOr(expr ast.Expr) bool {
 		return true
 	}
 	return topLevelOr(be.X) || topLevelOr(be.Y)
+}
+
+// anyAction returns if expr contains any call that isn't a builtin.
+func (c *Checker) anyAction(expr ast.Expr) bool {
+	any := false
+	ast.Inspect(expr, func(node ast.Node) bool {
+		ce, _ := node.(*ast.CallExpr)
+		if ce == nil {
+			return true
+		}
+		if _, ok := c.info.TypeOf(ce.Fun).(*types.Signature); !ok {
+			return true // e.g. type conversion
+		}
+		id, _ := ce.Fun.(*ast.Ident)
+		if _, ok := c.info.Uses[id].(*types.Builtin); ok {
+			return true // builtins allowed
+		}
+		any = true
+		return false
+	})
+	return any
 }
 
 func (c *Checker) anyCommentsBetween(p1, p2 token.Pos) bool {

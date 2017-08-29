@@ -64,3 +64,27 @@ func IfIfInList() {
 		}
 	}
 }
+
+func IfAndAction() {
+	if cond {
+		if action() {
+			println(num)
+		}
+	}
+}
+
+func IfAndBuiltin() {
+	if cond {
+		if len(slice) > 0 {
+			println(num)
+		}
+	}
+}
+
+func IfAndConversion() {
+	if cond {
+		if uint(num) == 4 {
+			println(num)
+		}
+	}
+}

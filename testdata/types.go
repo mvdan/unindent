@@ -5,9 +5,12 @@ var (
 
 	num int
 
+	slice []string
+
 	Sink interface{}
 
 	errVar error
 
-	fnErr func() (*int, error)
+	fnErr  func() (*int, error)
+	action func() bool
 )
